@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Fuel Order System with Role-Based Login and Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: auto;
+    }
+    h1, h2 {
+      text-align: center;
+    }
+    form {
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 15px;
+    }
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
+    input, select, textarea {
+      width: 100%;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 16px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #f2f2f2;
+    }
+    nav {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    nav a {
+      margin: 0 10px;
+      text-decoration: none;
+      color: blue;
+      font-weight: bold;
+    }
+    nav a.active {
+      text-decoration: underline;
+    }
+    .hidden {
+      display: none;
+    }
+    /* Role Login Section */
+    #roleLoginSection {
+      border: 1px solid #ccc;
+      padding: 10px;
+      max-width: 400px;
+      margin: 0 auto 20px;
+      background-color: #f9f9f9;
+    }
+    /* Search Containers */
+    #searchContainer, #customerDateSearchContainer {
+      text-align: center;
+      margin-bottom: 15px;
+    }
+    #searchContainer label, #customerDateSearchContainer label {
+      margin: 0 5px;
+    }
+    /* Print styles */
+    @media print {
+      nav,
+      #orderSection,
+      #roleLoginSection,
+      #searchContainer,
+      #customerDateSearchContainer,
+      #printButtonContainer {
+        display: none;
+      }
+      #dashboardSection {
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>M/s. Dev Service Center</h1>
+     <h3><center>Fuel Order System</h3>
+    
+    <!-- Navigation -->
+    <nav>
+      <a href="#" id="orderLink" class="active">Take Order</a>
+      <a href="#" id="dashboardLink">Dashboard</a>
+      <a href="#" id="loginLink">Login</a>
+    </nav>
+    
+    <!-- Role Login Section -->
+    <div id="roleLoginSection" class="hidden">
+      <h2>Login</h2>
+      <form id="roleLoginForm">
+        <div class="form-group">
+          <label for="roleSelect">Select Role:</label>
+          <select id="roleSelect" required>
+            <option value="">--Select Role--</option>
+            <option value="admin">Admin</option>
+            <option value="driver">Driver</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="loginUsername">Username:</label>
+          <input type="text" id="loginUsername" required>
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password:</label>
+          <input type="password" id="loginPassword" required>
+        </div>
+        <button type="submit">Login</button>
+      </form>
+    </div>
+    
+    <!-- Order Form Section -->
+    <div id="orderSection">
+      <h2>Place a Fuel Order</h2>
+      <form id="orderForm">
+        <div class="form-group">
+          <label for="customerName">Customer Name:</label>
+          <input type="text" id="customerName" required>
+        </div>
+        <div class="form-group">
+          <label for="customerMobile">Mobile Number:</label>
+          <input type="tel" id="customerMobile" required>
+        </div>
+        <div class="form-group">
+          <label for="address">Address:</label>
+          <textarea id="address" required placeholder="Enter address"></textarea>
+        </div>
+        <div class="form-group">
+          <label for="fuelType">Fuel Type:</label>
+          <select id="fuelType">
+            <option value="Petrol">Petrol</option>
+            <option value="Diesel">Diesel</option>
+            <option value="CNG">CNG</option>
+            <option value="Electric">Electric</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="quantity">Quantity (Liters or kWh):</label>
+          <input type="number" id="quantity" min="1" required>
+        </div>
+        <div class="form-group">
+          <label for="orderDate">Order Date:</label>
+          <input type="date" id="orderDate" required>
+        </div>
+        <button type="submit">Submit Order</button>
+      </form>
+    </div>
+    
+    <!-- Dashboard Section -->
+    <div id="dashboardSection" class="hidden">
+      <h2>Order Dashboard</h2>
+      
+      <!-- Admin Date Search (Visible only for Admin) -->
+      <div id="searchContainer" class="hidden">
+        <label for="fromDate">From:</label>
+        <input type="date" id="fromDate">
+        <label for="toDate">To:</label>
+        <input type="date" id="toDate">
+        <button onclick="filterOrdersByDate()">Search</button>
+        <button onclick="clearDateFilter()">Clear Filter</button>
+      </div>
+      
+      <!-- Customer/Driver Date Search (Visible for Customer and Driver) -->
+      <div id="customerDateSearchContainer" class="hidden">
+        <label for="customerSearchDate">Search by Date:</label>
+        <input type="date" id="customerSearchDate">
+        <button onclick="searchCustomerOrdersByDate()">Search</button>
+        <button onclick="clearCustomerDateSearch()">Clear</button>
+      </div>
+      
+      <!-- Print Button (Visible only for Admin) -->
+      <div id="printButtonContainer" class="hidden" style="text-align: center; margin-bottom: 10px;">
+        <button onclick="printDashboard()">Print Dashboard</button>
+      </div>
+      
+      <table id="ordersTable">
+        <thead id="ordersTableHead"></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  
+  <script>
+    // Global variables
+    let orders = [];
+    let orderId = 1;
+    let isAdmin = false;
+    let isDriver = false; // if both false, customer view
+    
+    // DOM References
+    const orderForm = document.getElementById("orderForm");
+    const ordersTableBody = document.querySelector("#ordersTable tbody");
+    const orderSection = document.getElementById("orderSection");
+    const dashboardSection = document.getElementById("dashboardSection");
+    const orderLink = document.getElementById("orderLink");
+    const dashboardLink = document.getElementById("dashboardLink");
+    const loginLink = document.getElementById("loginLink");
+    const roleLoginSection = document.getElementById("roleLoginSection");
+    const roleLoginForm = document.getElementById("roleLoginForm");
+    const roleSelect = document.getElementById("roleSelect");
+    const loginUsernameInput = document.getElementById("loginUsername");
+    const loginPasswordInput = document.getElementById("loginPassword");
+    const printButtonContainer = document.getElementById("printButtonContainer");
+    const searchContainer = document.getElementById("searchContainer");
+    const customerDateSearchContainer = document.getElementById("customerDateSearchContainer");
+    
+    // Navigation: switch sections
+    function switchSection(section) {
+      if (section === "order") {
+        orderSection.classList.remove("hidden");
+        dashboardSection.classList.add("hidden");
+        orderLink.classList.add("active");
+        dashboardLink.classList.remove("active");
+      } else if (section === "dashboard") {
+        orderSection.classList.add("hidden");
+        dashboardSection.classList.remove("hidden");
+        orderLink.classList.remove("active");
+        dashboardLink.classList.add("active");
+        renderOrders(orders);
+      }
+    }
+    orderLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      switchSection("order");
+    });
+    dashboardLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      switchSection("dashboard");
+    });
+    
+    // Single Login for Admin/Driver and Logout
+    loginLink.addEventListener("click", function(e) {
+      e.preventDefault();
+      if (isAdmin || isDriver) {
+        isAdmin = false;
+        isDriver = false;
+        loginLink.textContent = "Login";
+        alert("Logged out.");
+        updateTableHeader();
+        updateUI();
+        renderOrders(orders);
+      } else {
+        roleLoginSection.classList.remove("hidden");
+      }
+    });
+    
+    roleLoginForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const selectedRole = roleSelect.value;
+      const username = loginUsernameInput.value.trim();
+      const password = loginPasswordInput.value.trim();
+      if (selectedRole === "admin") {
+        if (username === "admin" && password === "admin123") {
+          isAdmin = true;
+          isDriver = false;
+          roleLoginSection.classList.add("hidden");
+          loginLink.textContent = "Logout";
+          alert("Admin logged in successfully!");
+        } else {
+          alert("Invalid Admin credentials!");
+          return;
+        }
+      } else if (selectedRole === "driver") {
+        if (username === "driver" && password === "driver123") {
+          isDriver = true;
+          isAdmin = false;
+          roleLoginSection.classList.add("hidden");
+          loginLink.textContent = "Logout";
+          alert("Driver logged in successfully!");
+        } else {
+          alert("Invalid Driver credentials!");
+          return;
+        }
+      } else {
+        alert("Please select a valid role.");
+        return;
+      }
+      updateTableHeader();
+      updateUI();
+      renderOrders(orders);
+      roleLoginForm.reset();
+    });
+    
+    // Update table header based on role
+    function updateTableHeader() {
+      const tableHead = document.getElementById("ordersTableHead");
+      if (isAdmin) {
+        tableHead.innerHTML = `<tr>
+          <th>Order ID</th>
+          <th>Customer Name</th>
+          <th>Mobile Number</th>
+          <th>Address</th>
+          <th>Fuel Type</th>
+          <th>Quantity</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Approved Amount (Rs)</th>
+          <th>Delivery Charges (Rs)</th>
+          <th>Service Charges (Rs)</th>
+          <th>Net Receivable (Rs)</th>
+          <th>Status</th>
+          <th>Rejection Message</th>
+          <th>Actions</th>
+        </tr>`;
+      } else if (isDriver) {
+        tableHead.innerHTML = `<tr>
+          <th>Order ID</th>
+          <th>Customer Name</th>
+          <th>Mobile Number</th>
+          <th>Address</th>
+          <th>Fuel Type</th>
+          <th>Quantity</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Approved Amount (Rs)</th>
+          <th>Delivery Charges (Rs)</th>
+          <th>Service Charges (Rs)</th>
+          <th>Net Receivable (Rs)</th>
+          <th>Status</th>
+          <th>Rejection Message</th>
+          <th>Action</th>
+        </tr>`;
+      } else {
+        // Customer view: limited columns (hide mobile, address, fuel type)
+        tableHead.innerHTML = `<tr>
+          <th>Order ID</th>
+          <th>Customer Name</th>
+          <th>Quantity</th>
+          <th>Order Date</th>
+          <th>Delivery Date</th>
+          <th>Approved Amount (Rs)</th>
+          <th>Delivery Charges (Rs)</th>
+          <th>Service Charges (Rs)</th>
+          <th>Net Receivable (Rs)</th>
+          <th>Status</th>
+          <th>Rejection Message</th>
+        </tr>`;
+      }
+    }
+    updateTableHeader();
+    
+    // Update UI elements
+    function updateUI() {
+      if (isAdmin) {
+        printButtonContainer.classList.remove("hidden");
+        searchContainer.classList.remove("hidden");
+        customerDateSearchContainer.classList.add("hidden");
+      } else {
+        printButtonContainer.classList.add("hidden");
+        searchContainer.classList.add("hidden");
+        customerDateSearchContainer.classList.remove("hidden");
+      }
+    }
+    updateUI();
+    
+    // Print Dashboard (admin only)
+    function printDashboard() {
+      window.print();
+    }
+    
+    // Generate HTML for an order row based on role.
+    function generateRowHTML(order) {
+      const netReceivable = order.approvedAmount !== ""
+        ? (parseFloat(order.approvedAmount) + parseFloat(order.deliveryCharges) + parseFloat(order.serviceCharges)).toFixed(2)
+        : "-";
+      let rowHTML = "";
+      if (isAdmin) {
+        rowHTML = `
+          <td>${order.id}</td>
+          <td>${order.customerName}</td>
+          <td>${order.mobile}</td>
+          <td>${order.address}</td>
+          <td>${order.fuelType}</td>
+          <td>${order.quantity}</td>
+          <td>${order.orderDate}</td>
+          <td>${order.deliveryDate ? order.deliveryDate : "-"}</td>
+          <td>${order.approvedAmount ? order.approvedAmount : "-"}</td>
+          <td>${order.deliveryCharges ? order.deliveryCharges : "-"}</td>
+          <td>${order.serviceCharges ? order.serviceCharges : "-"}</td>
+          <td>${netReceivable}</td>
+          <td>${order.status}</td>
+          <td>${order.status === "Rejected" ? order.rejectionMessage : ""}</td>
+          <td>
+            <button onclick="approveOrder(${order.id})">Approve</button>
+            <button onclick="rejectOrder(${order.id})">Reject</button>
+            <button onclick="completeDelivery(${order.id})">Complete Delivery</button>
+            <button onclick="editOrder(${order.id})">Edit</button>
+          </td>
+        `;
+      } else if (isDriver) {
+        rowHTML = `
+          <td>${order.id}</td>
+          <td>${order.customerName}</td>
+          <td>${order.mobile}</td>
+          <td>${order.address}</td>
+          <td>${order.fuelType}</td>
+          <td>${order.quantity}</td>
+          <td>${order.orderDate}</td>
+          <td>${order.deliveryDate ? order.deliveryDate : "-"}</td>
+          <td>${order.approvedAmount ? order.approvedAmount : "-"}</td>
+          <td>${order.deliveryCharges ? order.deliveryCharges : "-"}</td>
+          <td>${order.serviceCharges ? order.serviceCharges : "-"}</td>
+          <td>${netReceivable}</td>
+          <td>${order.status}</td>
+          <td>${order.status === "Rejected" ? order.rejectionMessage : ""}</td>
+          <td>${order.status === "Approved" ? `<button onclick="completeDelivery(${order.id})">Complete Delivery</button>` : ""}</td>
+        `;
+      } else {
+        rowHTML = `
+          <td>${order.id}</td>
+          <td>${order.customerName}</td>
+          <td>${order.quantity}</td>
+          <td>${order.orderDate}</td>
+          <td>${order.deliveryDate ? order.deliveryDate : "-"}</td>
+          <td>${order.approvedAmount ? order.approvedAmount : "-"}</td>
+          <td>${order.deliveryCharges ? order.deliveryCharges : "-"}</td>
+          <td>${order.serviceCharges ? order.serviceCharges : "-"}</td>
+          <td>${netReceivable}</td>
+          <td>${order.status}</td>
+          <td>${order.status === "Rejected" ? order.rejectionMessage : ""}</td>
+        `;
+      }
+      return rowHTML;
+    }
+    
+    // Render orders in the table.
+    // For Customer/Driver view, render orders for the selected (or today's) date whose status is one of Pending, Approved, Rejected, or Delivered.
+    function renderOrders(orderList) {
+      ordersTableBody.innerHTML = "";
+      let listToRender = orderList;
+      if (!isAdmin && !isDriver) {
+        let searchDate = document.getElementById("customerSearchDate").value;
+        if (!searchDate) {
+          searchDate = new Date().toISOString().split("T")[0];
+        }
+        listToRender = orderList.filter(order =>
+          (order.status === "Pending" ||
+           order.status === "Approved" ||
+           order.status === "Rejected" ||
+           order.status === "Delivered") &&
+          order.orderDate === searchDate
+        );
+      } else if (!isAdmin && isDriver) {
+        let searchDate = document.getElementById("customerSearchDate").value;
+        if (!searchDate) {
+          searchDate = new Date().toISOString().split("T")[0];
+        }
+        listToRender = orderList.filter(order =>
+          (order.status === "Pending" ||
+           order.status === "Approved" ||
+           order.status === "Rejected" ||
+           order.status === "Delivered") &&
+          order.orderDate === searchDate
+        );
+      }
+      listToRender.forEach(order => {
+        const row = document.createElement("tr");
+        row.id = `orderRow-${order.id}`;
+        row.innerHTML = generateRowHTML(order);
+        ordersTableBody.appendChild(row);
+      });
+    }
+    
+    // Update individual order row.
+    function updateOrderRow(order) {
+      const row = document.getElementById(`orderRow-${order.id}`);
+      if (!isAdmin && !isDriver) {
+        let searchDate = document.getElementById("customerSearchDate").value;
+        if (!searchDate) {
+          searchDate = new Date().toISOString().split("T")[0];
+        }
+        if (
+          (order.status !== "Pending" &&
+           order.status !== "Approved" &&
+           order.status !== "Rejected" &&
+           order.status !== "Delivered") ||
+          order.orderDate !== searchDate
+        ) {
+          if (row) row.remove();
+          return;
+        }
+      }
+      if (row) {
+        row.innerHTML = generateRowHTML(order);
+      }
+    }
+    
+    // Admin Actions
+    function approveOrder(id) {
+      const order = orders.find(o => o.id === id);
+      if (order && order.status === "Pending") {
+        let deliveryDate = prompt("Enter the expected delivery date (YYYY-MM-DD):");
+        if (!deliveryDate || deliveryDate.trim() === "") return;
+        let approvedAmount = prompt("Enter the approved amount (in Rs):");
+        if (!approvedAmount || approvedAmount.trim() === "") return;
+        let deliveryCharges = prompt("Enter the delivery charges (in Rs):");
+        if (!deliveryCharges || deliveryCharges.trim() === "") return;
+        let serviceCharges = prompt("Enter the service charges (in Rs):");
+        if (!serviceCharges || serviceCharges.trim() === "") return;
+        order.status = "Approved";
+        order.deliveryDate = deliveryDate;
+        order.approvedAmount = approvedAmount;
+        order.deliveryCharges = deliveryCharges;
+        order.serviceCharges = serviceCharges;
+        updateOrderRow(order);
+      }
+    }
+    function rejectOrder(id) {
+      const order = orders.find(o => o.id === id);
+      if (order && order.status === "Pending") {
+        let rejectionMsg = prompt("Enter a rejection message:");
+        if (rejectionMsg === null) return;
+        order.status = "Rejected";
+        order.rejectionMessage = rejectionMsg;
+        updateOrderRow(order);
+      }
+    }
+    function completeDelivery(id) {
+      const order = orders.find(o => o.id === id);
+      if (order && order.status === "Approved") {
+        order.status = "Delivered";
+        updateOrderRow(order);
+      }
+    }
+    function editOrder(id) {
+      const order = orders.find(o => o.id === id);
+      if (order) {
+        let newCustomerName = prompt("Edit Customer Name:", order.customerName);
+        if (newCustomerName !== null && newCustomerName.trim() !== "") order.customerName = newCustomerName;
+        let newMobile = prompt("Edit Mobile Number:", order.mobile);
+        if (newMobile !== null && newMobile.trim() !== "") order.mobile = newMobile;
+        let newAddress = prompt("Edit Address:", order.address);
+        if (newAddress !== null && newAddress.trim() !== "") order.address = newAddress;
+        let newFuelType = prompt("Edit Fuel Type (Petrol, Diesel, CNG, Electric):", order.fuelType);
+        if (newFuelType !== null && newFuelType.trim() !== "") order.fuelType = newFuelType;
+        let newQuantity = prompt("Edit Quantity (Liters or kWh):", order.quantity);
+        if (newQuantity !== null && newQuantity.trim() !== "") order.quantity = newQuantity;
+        let newOrderDate = prompt("Edit Order Date (YYYY-MM-DD):", order.orderDate);
+        if (newOrderDate !== null && newOrderDate.trim() !== "") order.orderDate = newOrderDate;
+        if (order.status === "Approved" || order.status === "Delivered") {
+          let newDeliveryDate = prompt("Edit Delivery Date (YYYY-MM-DD):", order.deliveryDate ? order.deliveryDate : "");
+          if (newDeliveryDate !== null && newDeliveryDate.trim() !== "") order.deliveryDate = newDeliveryDate;
+          let newApprovedAmount = prompt("Edit Approved Amount (in Rs):", order.approvedAmount ? order.approvedAmount : "");
+          if (newApprovedAmount !== null && newApprovedAmount.trim() !== "") order.approvedAmount = newApprovedAmount;
+          let newDeliveryCharges = prompt("Edit Delivery Charges (in Rs):", order.deliveryCharges ? order.deliveryCharges : "");
+          if (newDeliveryCharges !== null && newDeliveryCharges.trim() !== "") order.deliveryCharges = newDeliveryCharges;
+          let newServiceCharges = prompt("Edit Service Charges (in Rs):", order.serviceCharges ? order.serviceCharges : "");
+          if (newServiceCharges !== null && newServiceCharges.trim() !== "") order.serviceCharges = newServiceCharges;
+        }
+        if (order.status === "Rejected") {
+          let newRejectionMsg = prompt("Edit Rejection Message:", order.rejectionMessage ? order.rejectionMessage : "");
+          if (newRejectionMsg !== null && newRejectionMsg.trim() !== "") order.rejectionMessage = newRejectionMsg;
+        }
+        updateOrderRow(order);
+        alert("Order updated successfully!");
+      }
+    }
+    
+    // Customer Date Search Functions
+    function searchCustomerOrdersByDate() {
+      const searchDate = document.getElementById("customerSearchDate").value;
+      if (!searchDate) {
+        alert("Please select a date to search.");
+        return;
+      }
+      const filteredOrders = orders.filter(order =>
+        (order.status === "Pending" ||
+         order.status === "Approved" ||
+         order.status === "Rejected" ||
+         order.status === "Delivered") &&
+        order.orderDate === searchDate
+      );
+      renderOrders(filteredOrders);
+    }
+    function clearCustomerDateSearch() {
+      document.getElementById("customerSearchDate").value = "";
+      renderOrders(orders);
+    }
+    
+    // Admin Date Search Functions
+    function filterOrdersByDate() {
+      const fromDate = document.getElementById("fromDate").value;
+      const toDate = document.getElementById("toDate").value;
+      let filteredOrders = orders;
+      if (fromDate) {
+        filteredOrders = filteredOrders.filter(order => order.orderDate >= fromDate);
+      }
+      if (toDate) {
+        filteredOrders = filteredOrders.filter(order => order.orderDate = toDate);
+      }
+      renderOrders(filteredOrders);
+    }
+    function clearDateFilter() {
+      document.getElementById("fromDate").value = "";
+      document.getElementById("toDate").value = "";
+      renderOrders(orders);
+    }
+    
+    // Order Form Submission
+    orderForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      const customerName = document.getElementById("customerName").value;
+      const customerMobile = document.getElementById("customerMobile").value;
+      const address = document.getElementById("address").value;
+      const fuelType = document.getElementById("fuelType").value;
+      const quantity = document.getElementById("quantity").value;
+      const orderDate = document.getElementById("orderDate").value;
+      const order = {
+        id: orderId++,
+        customerName,
+        mobile: customerMobile,
+        address,
+        fuelType,
+        quantity,
+        orderDate,
+        status: "Pending",
+        deliveryDate: "",
+        approvedAmount: "",
+        deliveryCharges: "",
+        serviceCharges: "",
+        rejectionMessage: ""
+      };
+      orders.push(order);
+      addOrderToDashboard(order);
+      alert("Order submitted successfully!");
+      orderForm.reset();
+    });
+    
+    // Add order row to dashboard for a new order.
+    function addOrderToDashboard(order) {
+      if (!isAdmin && !isDriver) {
+        let searchDate = document.getElementById("customerSearchDate").value;
+        if (!searchDate) {
+          searchDate = new Date().toISOString().split("T")[0];
+        }
+        if (order.orderDate !== searchDate) return;
+      }
+      const row = document.createElement("tr");
+      row.id = `orderRow-${order.id}`;
+      row.innerHTML = generateRowHTML(order);
+      ordersTableBody.appendChild(row);
+    }
+    
+    // Make sure functions are attached to the window object for inline event handlers
+    window.approveOrder = approveOrder;
+    window.rejectOrder = rejectOrder;
+    window.completeDelivery = completeDelivery;
+    window.editOrder = editOrder;
+  </script>
+</body>
+</html>
+
